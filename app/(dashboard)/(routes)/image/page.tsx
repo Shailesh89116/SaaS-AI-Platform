@@ -176,8 +176,8 @@ const PhotoPage = () => {
           {photos.map((src) => (
             <Card key={src} className="rounded-lg overflow-hidden">
               <div className="relative aspect-square">
-                <Image
-                  fill
+                <img
+                className="fill"
                   alt="Generated"
                   src={src}
                 />
