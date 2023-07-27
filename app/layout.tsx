@@ -13,6 +13,7 @@ const font = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Genius',
   description: 'AI Platform',
+  icons:'/public/logo.png'
 }
 
 export default async function RootLayout({

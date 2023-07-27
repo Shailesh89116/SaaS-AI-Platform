@@ -52,6 +52,9 @@ const VideoPage = () => {
     }
   }
 
+  console.log("videos",video);
+  
+
   return ( 
     <div>
       <Heading

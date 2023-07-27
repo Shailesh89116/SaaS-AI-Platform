@@ -7,6 +7,9 @@ import { absoluteUrl } from "@/lib/utils";
 
 const settingsUrl = absoluteUrl("/settings");
 
+console.log("settingsUrl",settingsUrl);
+
+
 export async function GET() {
   try {
     const { userId } = auth();
@@ -20,13 +23,19 @@ export async function GET() {
       where: {
         userId
       }
-    })
+    });
+
+    console.log("userSubscription", userSubscription);
+    
 
     if (userSubscription && userSubscription.stripeCustomerId) {
       const stripeSession = await stripe.billingPortal.sessions.create({
         customer: userSubscription.stripeCustomerId,
         return_url: settingsUrl,
-      })
+      });
+
+      console.log("stripeSession",stripeSession);
+      
 
       return new NextResponse(JSON.stringify({ url: stripeSession.url }))
     }
@@ -58,7 +67,6 @@ export async function GET() {
         userId,
       },
     })
-console.log("URL  ",stripeSession.url);
 
     return new NextResponse(JSON.stringify({ url: stripeSession.url }))
   } catch (error) {
