@@ -1,17 +1,16 @@
 import { auth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
-import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from "openai";
+import { Groq } from "groq-sdk";
 
 import { checkSubscription } from "@/lib/subscription";
 import { incrementApiLimit, checkApiLimit } from "@/lib/api-limit";
+import { getChatHistory, updateChatHistory } from "@/lib/redis";
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
-const openai = new OpenAIApi(configuration);
-
-const instructionMessage: ChatCompletionRequestMessage = {
+const instructionMessage = {
   role: "system",
   content: "You are a code generator. You must answer only in markdown code snippets. Use code comments for explanations."
 };
@@ -22,14 +21,14 @@ export async function POST(
   try {
     const { userId } = auth();
     const body = await req.json();
-    const { messages  } = body;
+    const { messages } = body;
 
-    // if (!userId) {
-    //   return new NextResponse("Unauthorized", { status: 401 });
-    // }
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
-    if (!configuration.apiKey) {
-      return new NextResponse("OpenAI API Key not configured.", { status: 500 });
+    if (!process.env.GROQ_API_KEY) {
+      return new NextResponse("Groq API Key not configured.", { status: 500 });
     }
 
     if (!messages) {
@@ -43,18 +42,31 @@ export async function POST(
       return new NextResponse("Free trial has expired. Please upgrade to pro.", { status: 403 });
     }
 
-    const response = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [instructionMessage, ...messages]
+    // Get previous chat history
+    const chatHistory = await getChatHistory(userId);
+    
+    // Combine system message, chat history, and new messages
+    const fullMessages = [
+      instructionMessage,
+      ...chatHistory,
+      ...messages
+    ];
+
+    const response = await groq.chat.completions.create({
+      messages: fullMessages,
+      model: "mixtral-8x7b-32768",
     });
+
+    // Update chat history with new messages
+    await updateChatHistory(userId, [...chatHistory, ...messages, response.choices[0].message]);
 
     if (!isPro) {
       await incrementApiLimit();
     }
 
-    return NextResponse.json(response.data.choices[0].message);
+    return NextResponse.json(response.choices[0].message);
   } catch (error) {
     console.log('[CODE_ERROR]', error);
     return new NextResponse("Internal Error", { status: 500 });
   }
-};
+}

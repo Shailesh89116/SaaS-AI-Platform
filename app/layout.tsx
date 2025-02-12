@@ -7,6 +7,7 @@ import { ModalProvider } from '@/components/modal-provider'
 import { CrispProvider } from '@/components/crisp-provider'
 
 import './globals.css'
+import { ClerkProvider } from '@clerk/nextjs'
 
 const font = Inter({ subsets: ['latin'] });
 
@@ -22,7 +23,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   return (
-
+<ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <CrispProvider />
         <body className={font.className}>
@@ -31,6 +32,6 @@ export default async function RootLayout({
           {children}
         </body>
       </html>
-
+    </ClerkProvider>
   )
 }

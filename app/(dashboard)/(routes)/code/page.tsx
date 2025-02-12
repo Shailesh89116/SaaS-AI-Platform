@@ -4,7 +4,7 @@ import * as z from "zod";
 import axios from "axios";
 import { Code } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,22 @@ const CodePage = () => {
   const router = useRouter();
   const proModal = useProModal();
   const [messages, setMessages] = useState<ChatCompletionRequestMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      try {
+        const response = await axios.get('/api/code/history');
+        setMessages(response.data);
+      } catch (error) {
+        toast.error("Failed to load chat history");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchChatHistory();
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,7 +75,7 @@ const CodePage = () => {
   }
 
   return ( 
-    <div>
+    <div className="flex flex-col h-[calc(100vh-80px)]">
       <Heading
         title="Code Generation"
         description="Generate code using descriptive text."
@@ -67,8 +83,49 @@ const CodePage = () => {
         iconColor="text-green-700"
         bgColor="bg-green-700/10"
       />
-      <div className="px-4 lg:px-8">
-        <div>
+      <div className="flex-1 flex flex-col px-4 lg:px-8">
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {loading ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <Loader />
+            </div>
+          ) : messages.length === 0 ? (
+            <Empty label="No conversation started." />
+          ) : (
+            <div className="flex flex-col gap-y-4">
+              {messages.map((message) => (
+                <div 
+                  key={message.content} 
+                  className={cn(
+                    "p-8 w-full flex items-start gap-x-8 rounded-lg",
+                    message.role === "user" ? "bg-white border border-black/10" : "bg-muted",
+                  )}
+                >
+                  {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
+                  <ReactMarkdown components={{
+                    pre: ({ node, ...props }) => (
+                      <div className="overflow-auto w-full my-2 bg-black/10 p-2 rounded-lg">
+                        <pre {...props} />
+                      </div>
+                    ),
+                    code: ({ node, ...props }) => (
+                      <code className="bg-black/10 rounded-lg p-1" {...props} />
+                    )
+                  }} className="text-sm overflow-hidden leading-7">
+                    {message.content || ""}
+                  </ReactMarkdown>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="pb-4 pt-2">
+          {isLoading && (
+            <div className="p-8 rounded-lg w-full flex items-center justify-center bg-muted">
+              <Loader />
+            </div>
+          )}
           <Form {...form}>
             <form 
               onSubmit={form.handleSubmit(onSubmit)} 
@@ -105,41 +162,6 @@ const CodePage = () => {
               </Button>
             </form>
           </Form>
-        </div>
-        <div className="space-y-4 mt-4">
-          {isLoading && (
-            <div className="p-8 rounded-lg w-full flex items-center justify-center bg-muted">
-              <Loader />
-            </div>
-          )}
-          {messages.length === 0 && !isLoading && (
-            <Empty label="No conversation started." />
-          )}
-          <div className="flex flex-col-reverse gap-y-4">
-            {messages.map((message) => (
-              <div 
-                key={message.content} 
-                className={cn(
-                  "p-8 w-full flex items-start gap-x-8 rounded-lg",
-                  message.role === "user" ? "bg-white border border-black/10" : "bg-muted",
-                )}
-              >
-                {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
-                <ReactMarkdown components={{
-                  pre: ({ node, ...props }) => (
-                    <div className="overflow-auto w-full my-2 bg-black/10 p-2 rounded-lg">
-                      <pre {...props} />
-                    </div>
-                  ),
-                  code: ({ node, ...props }) => (
-                    <code className="bg-black/10 rounded-lg p-1" {...props} />
-                  )
-                }} className="text-sm overflow-hidden leading-7">
-                  {message.content || ""}
-                </ReactMarkdown>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
